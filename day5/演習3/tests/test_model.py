@@ -1,11 +1,8 @@
 import os
-
-import mlflow
-
-
 import pickle
 import time
 
+import mlflow
 import numpy as np
 import pandas as pd
 import pytest
@@ -125,8 +122,8 @@ def get_baseline_accuracy(experiment_name="Titanic", min_runs_for_baseline=1):
     experiment_id = experiment.experiment_id
     runs = mlflow.search_runs(
         experiment_ids=[experiment_id],
-        filter_string="metrics.accuracy IS NOT NULL AND status = 'FINISHED'",
-        order_by=["attributes.start_time DESC"],  # 新しい順
+        filter_string="metrics.`accuracy` IS NOT NULL AND attributes.`status` = 'FINISHED'",
+        order_by=["attributes.start_time DESC"],
     )
     if runs.empty or len(runs) < min_runs_for_baseline:
         print(
@@ -226,6 +223,6 @@ def test_model_reproducibility(sample_data, preprocessor):
     predictions1 = model1.predict(X_test)
     predictions2 = model2.predict(X_test)
 
-    assert np.array_equal(
-        predictions1, predictions2
-    ), "モデルの予測結果に再現性がありません"
+    assert np.array_equal(predictions1, predictions2), (
+        "モデルの予測結果に再現性がありません"
+    )
