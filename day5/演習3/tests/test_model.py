@@ -1,4 +1,5 @@
 import os
+import mlflow
 import pytest
 import pandas as pd
 import numpy as np
@@ -102,12 +103,34 @@ def train_model(sample_data, preprocessor):
     return model, X_test, y_test
 
 
-def test_model_exists():
+def test_model_exists(experiment_name="Titanic", min_runs_for_baseline=1):
     """モデルファイルが存在するか確認"""
     if not os.path.exists(MODEL_PATH):
         pytest.skip("モデルファイルが存在しないためスキップします")
     assert os.path.exists(MODEL_PATH), "モデルファイルが存在しません"
 
+def get_baseline_accuracy(experiment_name="Titanic", min_runs_for_baseline=1):
+    """ベースラインの精度を取得"""
+    experiment = mlflow.get_experiment_by_name(experiment_name)
+    if experiment is None:
+        raise ValueError(f"Experiment '{experiment_name}' not found")
+    experiment_id = experiment.experiment_id
+    runs = mlflow.search_runs(
+        experiment_ids=[experiment_id],
+        filter_string="metrics.accuracy IS NOT NULL AND status = 'FINISHED'",
+        order_by=["attributes.start_time DESC"],  # 新しい順
+    )
+    if runs.empty or len(runs) < min_runs_for_baseline:
+        print(
+            f"Not enough runs ({len(runs)}) in experiment '{experiment_name}' to determine a reliable baseline (minimum: {min_runs_for_baseline})."
+        )
+        return None
+    baseline_run = runs.iloc[0]  # 最新のものを選択
+    baseline_accuracy = baseline_run["metrics.accuracy"]
+    print(
+        f"Found baseline run: {baseline_run.run_id} with accuracy: {baseline_accuracy:.4f}"
+    )
+    return baseline_accuracy
 
 def test_model_accuracy(train_model):
     """モデルの精度を検証"""
@@ -115,10 +138,36 @@ def test_model_accuracy(train_model):
 
     # 予測と精度計算
     y_pred = model.predict(X_test)
-    accuracy = accuracy_score(y_test, y_pred)
+    current_accuracy = accuracy_score(y_test, y_pred)
 
-    # Titanicデータセットでは0.75以上の精度が一般的に良いとされる
-    assert accuracy >= 0.75, f"モデルの精度が低すぎます: {accuracy}"
+    baseline_accuracy = get_baseline_accuracy(experiment_name="Titanic")
+
+    if baseline_accuracy is None:
+        pytest.skip(
+            "ベースラインとなるモデルの精度が見つからないため、性能劣化テストをスキップします。"
+        )
+        return
+
+    print(f"Current model accuracy: {current_accuracy:.4f}")
+    print(f"Baseline model accuracy: {baseline_accuracy:.4f}")
+
+    # 性能劣化の許容閾値
+    # 例1: ベースラインの精度から5%以上低下しない (相対的な低下)
+    relative_threshold = 0.95  # ベースラインの95%の精度を維持
+    # 例2: ベースラインの精度から絶対値で0.03以上低下しない (絶対的な低下)
+    absolute_diff_threshold = 0.03
+
+    assert current_accuracy >= baseline_accuracy * relative_threshold, (
+        f"モデルの精度がベースライン ({baseline_accuracy:.4f}) から相対的に許容範囲を超えて低下しました "
+        f"(現在値: {current_accuracy:.4f}, 期待値: >= {baseline_accuracy * relative_threshold:.4f})."
+    )
+
+    assert current_accuracy >= baseline_accuracy - absolute_diff_threshold, (
+        f"モデルの精度がベースライン ({baseline_accuracy:.4f}) から絶対値で許容範囲を超えて低下しました "
+        f"(現在値: {current_accuracy:.4f}, 期待値: >= {baseline_accuracy - absolute_diff_threshold:.4f})."
+    )
+
+    print("Performance regression test passed.")
 
 
 def test_model_inference_time(train_model):
