@@ -1,7 +1,7 @@
 kedro
-scikit-learn
+scikit-learn==1.6.1
 mlflow
-pandas
+pandas==2.2.2
 pytest
-great_expectations
+great_expectations==0.18.14
 black

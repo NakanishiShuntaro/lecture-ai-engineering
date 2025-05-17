@@ -1,17 +1,22 @@
 import os
-import pytest
-import pandas as pd
-import numpy as np
 import pickle
 import time
-from sklearn.ensemble import RandomForestClassifier
-from sklearn.model_selection import train_test_split
-from sklearn.metrics import accuracy_score
-from sklearn.impute import SimpleImputer
-from sklearn.preprocessing import OneHotEncoder, StandardScaler
-from sklearn.compose import ColumnTransformer
-from sklearn.pipeline import Pipeline
 
+import mlflow
+import numpy as np
+import pandas as pd
+import pytest
+from sklearn.compose import ColumnTransformer
+from sklearn.ensemble import RandomForestClassifier
+from sklearn.impute import SimpleImputer
+from sklearn.metrics import accuracy_score
+from sklearn.model_selection import train_test_split
+from sklearn.pipeline import Pipeline
+from sklearn.preprocessing import OneHotEncoder, StandardScaler
+
+github_workspace = os.environ.get("GITHUB_WORKSPACE", ".")
+tracking_uri_path = os.path.join(github_workspace, "day5", "演習1", "mlruns")
+mlflow.set_tracking_uri(tracking_uri_path)
 # テスト用データとモデルパスを定義
 DATA_PATH = os.path.join(os.path.dirname(__file__), "../data/Titanic.csv")
 MODEL_DIR = os.path.join(os.path.dirname(__file__), "../models")
@@ -102,11 +107,54 @@ def train_model(sample_data, preprocessor):
     return model, X_test, y_test
 
 
-def test_model_exists():
+def test_model_exists(experiment_name="Titanic", min_runs_for_baseline=1):
     """モデルファイルが存在するか確認"""
     if not os.path.exists(MODEL_PATH):
         pytest.skip("モデルファイルが存在しないためスキップします")
     assert os.path.exists(MODEL_PATH), "モデルファイルが存在しません"
+
+
+def get_baseline_accuracy(experiment_name="Titanic", min_runs_for_baseline=1):
+    """ベースラインの精度を取得"""
+    experiment = mlflow.get_experiment_by_name(experiment_name)
+    if experiment is None:
+        raise ValueError(f"Experiment '{experiment_name}' not found")
+    experiment_id = experiment.experiment_id
+
+    # まず、ステータスが 'FINISHED' の実行のみを取得
+    runs_df = mlflow.search_runs(
+        experiment_ids=[experiment_id],
+        filter_string="attributes.status = 'FINISHED'",  # ステータスのみでフィルタ
+        order_by=["attributes.start_time DESC"],
+    )
+
+    if runs_df.empty:
+        print(f"No finished runs found in experiment '{experiment_name}'.")
+        return None
+
+    # 'metrics.accuracy' 列が存在し、かつNaNでない実行をフィルタリング
+    # 'metrics.accuracy' がキーとして存在しない場合のエラーを避けるため、まず列の存在を確認
+    if "metrics.accuracy" not in runs_df.columns:
+        print(
+            f"'metrics.accuracy' not found in runs for experiment '{experiment_name}'."
+        )
+        return None
+
+    filtered_runs = runs_df.dropna(subset=["metrics.accuracy"])
+
+    if filtered_runs.empty or len(filtered_runs) < min_runs_for_baseline:
+        print(
+            f"Not enough runs with 'metrics.accuracy' ({len(filtered_runs)}) in experiment '{experiment_name}' "
+            f"to determine a reliable baseline (minimum: {min_runs_for_baseline})."
+        )
+        return None
+
+    baseline_run = filtered_runs.iloc[0]  # 最新のものを選択
+    baseline_accuracy = baseline_run["metrics.accuracy"]
+    print(
+        f"Found baseline run: {baseline_run['run_id']} with accuracy: {baseline_accuracy:.4f}"
+    )
+    return baseline_accuracy
 
 
 def test_model_accuracy(train_model):
@@ -115,10 +163,36 @@ def test_model_accuracy(train_model):
 
     # 予測と精度計算
     y_pred = model.predict(X_test)
-    accuracy = accuracy_score(y_test, y_pred)
+    current_accuracy = accuracy_score(y_test, y_pred)
 
-    # Titanicデータセットでは0.75以上の精度が一般的に良いとされる
-    assert accuracy >= 0.75, f"モデルの精度が低すぎます: {accuracy}"
+    baseline_accuracy = get_baseline_accuracy(experiment_name="Titanic")
+
+    if baseline_accuracy is None:
+        pytest.skip(
+            "ベースラインとなるモデルの精度が見つからないため、性能劣化テストをスキップします。"
+        )
+        return
+
+    print(f"Current model accuracy: {current_accuracy:.4f}")
+    print(f"Baseline model accuracy: {baseline_accuracy:.4f}")
+
+    # 性能劣化の許容閾値
+    # 例1: ベースラインの精度から5%以上低下しない (相対的な低下)
+    relative_threshold = 0.95  # ベースラインの95%の精度を維持
+    # 例2: ベースラインの精度から絶対値で0.03以上低下しない (絶対的な低下)
+    absolute_diff_threshold = 0.03
+
+    assert current_accuracy >= baseline_accuracy * relative_threshold, (
+        f"モデルの精度がベースライン ({baseline_accuracy:.4f}) から相対的に許容範囲を超えて低下しました "
+        f"(現在値: {current_accuracy:.4f}, 期待値: >= {baseline_accuracy * relative_threshold:.4f})."
+    )
+
+    assert current_accuracy >= baseline_accuracy - absolute_diff_threshold, (
+        f"モデルの精度がベースライン ({baseline_accuracy:.4f}) から絶対値で許容範囲を超えて低下しました "
+        f"(現在値: {current_accuracy:.4f}, 期待値: >= {baseline_accuracy - absolute_diff_threshold:.4f})."
+    )
+
+    print("Performance regression test passed.")
 
 
 def test_model_inference_time(train_model):

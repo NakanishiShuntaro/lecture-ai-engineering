@@ -1,20 +1,18 @@
 import os
+import pickle
+import random
+
 import mlflow
 import mlflow.sklearn
 import pandas as pd
-import numpy as np
-import random
-import pickle
-from sklearn.model_selection import train_test_split
+from mlflow.models.signature import infer_signature
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.metrics import accuracy_score
+from sklearn.model_selection import train_test_split
 from sklearn.preprocessing import LabelEncoder
-from mlflow.models.signature import infer_signature
 
 
-# データ準備
 def prepare_data(test_size=0.2, random_state=42):
-    # Titanicデータセットの読み込み
     path = "data/Titanic.csv"
     data = pd.read_csv(path)
 
@@ -54,6 +52,7 @@ def train_and_evaluate(
 
 # モデル保存
 def log_model(model, accuracy, params):
+    mlflow.set_experiment("Titanic")
     with mlflow.start_run():
         # パラメータをログ
         for param_name, param_value in params.items():
@@ -117,7 +116,7 @@ if __name__ == "__main__":
 
     model_dir = "models"
     os.makedirs(model_dir, exist_ok=True)
-    model_path = os.path.join(model_dir, f"titanic_model.pkl")
+    model_path = os.path.join(model_dir, "titanic_model.pkl")
     with open(model_path, "wb") as f:
         pickle.dump(model, f)
     print(f"モデルを {model_path} に保存しました")

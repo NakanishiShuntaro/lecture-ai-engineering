@@ -257,14 +257,14 @@ def test_model_performance():
     metrics = ModelTester.evaluate_model(model, X_test, y_test)
 
     # ベースラインとの比較
-    assert ModelTester.compare_with_baseline(metrics, 0.75), (
-        f"モデル性能がベースラインを下回っています: {metrics['accuracy']}"
-    )
+    assert ModelTester.compare_with_baseline(
+        metrics, 0.75
+    ), f"モデル性能がベースラインを下回っています: {metrics['accuracy']}"
 
     # 推論時間の確認
-    assert metrics["inference_time"] < 1.0, (
-        f"推論時間が長すぎます: {metrics['inference_time']}秒"
-    )
+    assert (
+        metrics["inference_time"] < 1.0
+    ), f"推論時間が長すぎます: {metrics['inference_time']}秒"
 
 
 if __name__ == "__main__":

@@ -1,0 +1,15 @@
+artifact_uri: file:///Users/a81802/Documents/Programs/lecture-ai-engineering/day5/%E6%BC%94%E7%BF%921/mlruns/440418331411495880/d4edbfcb529c475c83100e26b6513cfe/artifacts
+end_time: 1747460608334
+entry_point_name: ''
+experiment_id: '440418331411495880'
+lifecycle_stage: active
+run_id: d4edbfcb529c475c83100e26b6513cfe
+run_name: nimble-pug-15
+run_uuid: d4edbfcb529c475c83100e26b6513cfe
+source_name: ''
+source_type: 4
+source_version: ''
+start_time: 1747460606721
+status: 3
+tags: []
+user_id: a81802
