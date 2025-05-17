@@ -1,15 +1,17 @@
 import os
-import pandas as pd
-from sklearn.ensemble import RandomForestClassifier
-from sklearn.model_selection import train_test_split
-from sklearn.metrics import accuracy_score
-from sklearn.preprocessing import StandardScaler, OneHotEncoder
-from sklearn.compose import ColumnTransformer
-from sklearn.pipeline import Pipeline
-from sklearn.impute import SimpleImputer
 import pickle
 import time
+
 import great_expectations as gx
+import pandas as pd
+from sklearn.compose import ColumnTransformer
+from sklearn.ensemble import RandomForestClassifier
+from sklearn.impute import SimpleImputer
+from sklearn.metrics import accuracy_score
+from sklearn.model_selection import train_test_split
+from sklearn.pipeline import Pipeline
+from sklearn.preprocessing import OneHotEncoder, StandardScaler
+
 
 class DataLoader:
     """データロードを行うクラス"""
@@ -57,22 +59,24 @@ class DataValidator:
         """Titanicデータセットの検証"""
         # DataFrameに変換
         if not isinstance(data, pd.DataFrame):
-            return False, ["データはpd.DataFrameである必要があります"]
+            return False, [
+                {
+                    "success": False,
+                    "error_message": "データはpd.DataFrameである必要があります",
+                }
+            ]
 
-        # Great Expectationsを使用したバリデーション
         try:
             context = gx.get_context()
-            data_source = context.data_sources.add_pandas("pandas")
-            data_asset = data_source.add_dataframe_asset(name="pd dataframe asset")
 
-            batch_definition = data_asset.add_batch_definition_whole_dataframe(
-                "batch definition"
-            )
-            batch = batch_definition.get_batch(batch_parameters={"dataframe": data})
+            # Validator を取得 (新しいAPI)
+            validator = context.sources.add_pandas(
+                "my_pandas_datasource"
+            ).read_dataframe(data, asset_name="titanic_data_asset")
 
             results = []
 
-            # 必須カラムの存在確認
+            # 必須カラムの存在確認 (これはGreat Expectationsの機能外なので現状維持)
             required_columns = [
                 "Pclass",
                 "Sex",
@@ -87,29 +91,42 @@ class DataValidator:
             ]
             if missing_columns:
                 print(f"警告: 以下のカラムがありません: {missing_columns}")
-                return False, [{"success": False, "missing_columns": missing_columns}]
+                return False, [
+                    {
+                        "success": False,
+                        "error_message": f"必須カラムが不足: {missing_columns}",
+                    }
+                ]
 
-            expectations = [
-                gx.expectations.ExpectColumnDistinctValuesToBeInSet(
-                    column="Pclass", value_set=[1, 2, 3]
-                ),
-                gx.expectations.ExpectColumnDistinctValuesToBeInSet(
-                    column="Sex", value_set=["male", "female"]
-                ),
-                gx.expectations.ExpectColumnValuesToBeBetween(
-                    column="Age", min_value=0, max_value=100
-                ),
-                gx.expectations.ExpectColumnValuesToBeBetween(
-                    column="Fare", min_value=0, max_value=600
-                ),
-                gx.expectations.ExpectColumnDistinctValuesToBeInSet(
-                    column="Embarked", value_set=["C", "Q", "S", ""]
-                ),
-            ]
+            # Great Expectations の Expectation を実行
+            result_pclass = validator.expect_column_distinct_values_to_be_in_set(
+                column="Pclass", value_set=[1, 2, 3]
+            )
+            results.append(result_pclass)
 
-            for expectation in expectations:
-                result = batch.validate(expectation)
-                results.append(result)
+            result_sex = validator.expect_column_distinct_values_to_be_in_set(
+                column="Sex", value_set=["male", "female"]
+            )
+            results.append(result_sex)
+
+            result_age = validator.expect_column_values_to_be_between(
+                column="Age",
+                min_value=0,
+                max_value=100,
+                parse_strings_as_datetimes=False,
+            )
+            results.append(result_age)
+
+            result_fare = validator.expect_column_values_to_be_between(
+                column="Fare", min_value=0, max_value=600
+            )
+            results.append(result_fare)
+
+            result_embarked = validator.expect_column_distinct_values_to_be_in_set(
+                column="Embarked",
+                value_set=["C", "Q", "S", ""],
+            )
+            results.append(result_embarked)
 
             # すべての検証が成功したかチェック
             is_successful = all(result.success for result in results)
@@ -117,7 +134,9 @@ class DataValidator:
 
         except Exception as e:
             print(f"Great Expectations検証エラー: {e}")
-            return False, [{"success": False, "error": str(e)}]
+            return False, [
+                {"success": False, "error_message": f"GX検証中のエラー: {str(e)}"}
+            ]
 
 
 class ModelTester:
@@ -186,7 +205,7 @@ class ModelTester:
     def save_model(model, path="models/titanic_model.pkl"):
         model_dir = "models"
         os.makedirs(model_dir, exist_ok=True)
-        model_path = os.path.join(model_dir, f"titanic_model.pkl")
+        model_path = os.path.join(model_dir, "titanic_model.pkl")
         with open(model_path, "wb") as f:
             pickle.dump(model, f)
         return path
@@ -238,14 +257,14 @@ def test_model_performance():
     metrics = ModelTester.evaluate_model(model, X_test, y_test)
 
     # ベースラインとの比較
-    assert ModelTester.compare_with_baseline(
-        metrics, 0.75
-    ), f"モデル性能がベースラインを下回っています: {metrics['accuracy']}"
+    assert ModelTester.compare_with_baseline(metrics, 0.75), (
+        f"モデル性能がベースラインを下回っています: {metrics['accuracy']}"
+    )
 
     # 推論時間の確認
-    assert (
-        metrics["inference_time"] < 1.0
-    ), f"推論時間が長すぎます: {metrics['inference_time']}秒"
+    assert metrics["inference_time"] < 1.0, (
+        f"推論時間が長すぎます: {metrics['inference_time']}秒"
+    )
 
 
 if __name__ == "__main__":
@@ -253,35 +272,47 @@ if __name__ == "__main__":
     data = DataLoader.load_titanic_data()
     X, y = DataLoader.preprocess_titanic_data(data)
 
-    # データバリデーション
-    success, results = DataValidator.validate_titanic_data(X)
-    print(f"データ検証結果: {'成功' if success else '失敗'}")
-    for result in results:
-        # "success": falseの場合はエラーメッセージを表示
-        if not result["success"]:
-            print(f"異常タイプ: {result['expectation_config']['type']}, 結果: {result}")
+    # データ検証
+    # Veritatorクラスに修正
+    success, validation_results = DataValidator.validate_titanic_data(X)
     if not success:
-        print("データ検証に失敗しました。処理を終了します。")
-        exit(1)
+        print("データ検証結果: 失敗")
+        for r in validation_results:  # 変数名変更
+            if not r.success:
+                expectation_type = "不明なタイプ"
+                if r.expectation_config:  # expectation_config が None でないことを確認
+                    expectation_type = r.expectation_config.expectation_type
 
-    # モデルのトレーニングと評価
-    X_train, X_test, y_train, y_test = train_test_split(
-        X, y, test_size=0.2, random_state=42
-    )
+                observed_value = (
+                    r.result.get("observed_value", "N/A") if r.result else "N/A"
+                )  # r.resultもNoneチェック
+                # より詳細な情報を表示したい場合は r.result の他のキーも確認
+                print(
+                    f"異常タイプ: {expectation_type}, success={r.success}, observed_value='{observed_value}', details={r.result}"
+                )
+    else:
+        print("データ検証結果: 成功")
 
-    # パラメータ設定
-    model_params = {"n_estimators": 100, "random_state": 42}
+    # モデル学習と評価（検証が成功した場合のみ）
+    if success:
+        # データ分割
+        X_train, X_test, y_train, y_test = train_test_split(
+            X, y, test_size=0.2, random_state=42
+        )
 
-    # モデルトレーニング
-    model = ModelTester.train_model(X_train, y_train, model_params)
-    metrics = ModelTester.evaluate_model(model, X_test, y_test)
+        # パラメータ設定
+        model_params = {"n_estimators": 100, "random_state": 42}
 
-    print(f"精度: {metrics['accuracy']:.4f}")
-    print(f"推論時間: {metrics['inference_time']:.4f}秒")
+        # モデルトレーニング
+        model = ModelTester.train_model(X_train, y_train, model_params)
+        metrics = ModelTester.evaluate_model(model, X_test, y_test)
 
-    # モデル保存
-    model_path = ModelTester.save_model(model)
+        print(f"精度: {metrics['accuracy']:.4f}")
+        print(f"推論時間: {metrics['inference_time']:.4f}秒")
 
-    # ベースラインとの比較
-    baseline_ok = ModelTester.compare_with_baseline(metrics)
-    print(f"ベースライン比較: {'合格' if baseline_ok else '不合格'}")
+        # モデル保存
+        model_path = ModelTester.save_model(model)
+
+        # ベースラインとの比較
+        baseline_ok = ModelTester.compare_with_baseline(metrics)
+        print(f"ベースライン比較: {'合格' if baseline_ok else '不合格'}")
