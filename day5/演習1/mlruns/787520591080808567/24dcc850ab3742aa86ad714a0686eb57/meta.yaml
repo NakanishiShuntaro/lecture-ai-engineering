@@ -1,0 +1,15 @@
+artifact_uri: file:///Users/a81802/Documents/Programs/lecture-ai-engineering/day5/%E6%BC%94%E7%BF%921/mlruns/787520591080808567/24dcc850ab3742aa86ad714a0686eb57/artifacts
+end_time: 1747460618017
+entry_point_name: ''
+experiment_id: '787520591080808567'
+lifecycle_stage: active
+run_id: 24dcc850ab3742aa86ad714a0686eb57
+run_name: nebulous-wren-654
+run_uuid: 24dcc850ab3742aa86ad714a0686eb57
+source_name: ''
+source_type: 4
+source_version: ''
+start_time: 1747460616317
+status: 3
+tags: []
+user_id: a81802

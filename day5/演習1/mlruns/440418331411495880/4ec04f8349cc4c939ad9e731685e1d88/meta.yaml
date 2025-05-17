@@ -1,0 +1,15 @@
+artifact_uri: file:///Users/a81802/Documents/Programs/lecture-ai-engineering/day5/%E6%BC%94%E7%BF%921/mlruns/440418331411495880/4ec04f8349cc4c939ad9e731685e1d88/artifacts
+end_time: 1747462887106
+entry_point_name: ''
+experiment_id: '440418331411495880'
+lifecycle_stage: active
+run_id: 4ec04f8349cc4c939ad9e731685e1d88
+run_name: luxuriant-frog-595
+run_uuid: 4ec04f8349cc4c939ad9e731685e1d88
+source_name: ''
+source_type: 4
+source_version: ''
+start_time: 1747462885504
+status: 3
+tags: []
+user_id: a81802

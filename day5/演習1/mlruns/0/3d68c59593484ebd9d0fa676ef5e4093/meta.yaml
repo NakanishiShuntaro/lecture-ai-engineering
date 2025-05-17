@@ -1,0 +1,15 @@
+artifact_uri: file:///Users/a81802/Documents/Programs/lecture-ai-engineering/day5/%E6%BC%94%E7%BF%921/mlruns/0/3d68c59593484ebd9d0fa676ef5e4093/artifacts
+end_time: 1747363854862
+entry_point_name: ''
+experiment_id: '0'
+lifecycle_stage: active
+run_id: 3d68c59593484ebd9d0fa676ef5e4093
+run_name: suave-frog-588
+run_uuid: 3d68c59593484ebd9d0fa676ef5e4093
+source_name: ''
+source_type: 4
+source_version: ''
+start_time: 1747363851317
+status: 3
+tags: []
+user_id: a81802

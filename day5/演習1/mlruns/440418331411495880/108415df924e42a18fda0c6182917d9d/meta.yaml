@@ -1,0 +1,15 @@
+artifact_uri: file:///Users/a81802/Documents/Programs/lecture-ai-engineering/day5/%E6%BC%94%E7%BF%921/mlruns/440418331411495880/108415df924e42a18fda0c6182917d9d/artifacts
+end_time: 1747463176718
+entry_point_name: ''
+experiment_id: '440418331411495880'
+lifecycle_stage: active
+run_id: 108415df924e42a18fda0c6182917d9d
+run_name: trusting-snake-24
+run_uuid: 108415df924e42a18fda0c6182917d9d
+source_name: ''
+source_type: 4
+source_version: ''
+start_time: 1747463175027
+status: 3
+tags: []
+user_id: a81802

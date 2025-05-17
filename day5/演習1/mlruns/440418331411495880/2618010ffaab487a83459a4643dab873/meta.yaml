@@ -1,0 +1,15 @@
+artifact_uri: file:///Users/a81802/Documents/Programs/lecture-ai-engineering/day5/%E6%BC%94%E7%BF%921/mlruns/440418331411495880/2618010ffaab487a83459a4643dab873/artifacts
+end_time: 1747460711288
+entry_point_name: ''
+experiment_id: '440418331411495880'
+lifecycle_stage: active
+run_id: 2618010ffaab487a83459a4643dab873
+run_name: nimble-smelt-653
+run_uuid: 2618010ffaab487a83459a4643dab873
+source_name: ''
+source_type: 4
+source_version: ''
+start_time: 1747460709662
+status: 3
+tags: []
+user_id: a81802
