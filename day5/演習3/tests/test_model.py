@@ -109,6 +109,7 @@ def test_model_exists(experiment_name="Titanic", min_runs_for_baseline=1):
         pytest.skip("モデルファイルが存在しないためスキップします")
     assert os.path.exists(MODEL_PATH), "モデルファイルが存在しません"
 
+
 def get_baseline_accuracy(experiment_name="Titanic", min_runs_for_baseline=1):
     """ベースラインの精度を取得"""
     experiment = mlflow.get_experiment_by_name(experiment_name)
@@ -131,6 +132,7 @@ def get_baseline_accuracy(experiment_name="Titanic", min_runs_for_baseline=1):
         f"Found baseline run: {baseline_run.run_id} with accuracy: {baseline_accuracy:.4f}"
     )
     return baseline_accuracy
+
 
 def test_model_accuracy(train_model):
     """モデルの精度を検証"""
