@@ -120,20 +120,39 @@ def get_baseline_accuracy(experiment_name="Titanic", min_runs_for_baseline=1):
     if experiment is None:
         raise ValueError(f"Experiment '{experiment_name}' not found")
     experiment_id = experiment.experiment_id
-    runs = mlflow.search_runs(
+
+    # まず、ステータスが 'FINISHED' の実行のみを取得
+    runs_df = mlflow.search_runs(
         experiment_ids=[experiment_id],
-        filter_string="metrics.accuracy IS NOT NULL AND status = 'FINISHED'",
+        filter_string="attributes.status = 'FINISHED'",  # ステータスのみでフィルタ
         order_by=["attributes.start_time DESC"],
     )
-    if runs.empty or len(runs) < min_runs_for_baseline:
+
+    if runs_df.empty:
+        print(f"No finished runs found in experiment '{experiment_name}'.")
+        return None
+
+    # 'metrics.accuracy' 列が存在し、かつNaNでない実行をフィルタリング
+    # 'metrics.accuracy' がキーとして存在しない場合のエラーを避けるため、まず列の存在を確認
+    if "metrics.accuracy" not in runs_df.columns:
         print(
-            f"Not enough runs ({len(runs)}) in experiment '{experiment_name}' to determine a reliable baseline (minimum: {min_runs_for_baseline})."
+            f"'metrics.accuracy' not found in runs for experiment '{experiment_name}'."
         )
         return None
-    baseline_run = runs.iloc[0]  # 最新のものを選択
+
+    filtered_runs = runs_df.dropna(subset=["metrics.accuracy"])
+
+    if filtered_runs.empty or len(filtered_runs) < min_runs_for_baseline:
+        print(
+            f"Not enough runs with 'metrics.accuracy' ({len(filtered_runs)}) in experiment '{experiment_name}' "
+            f"to determine a reliable baseline (minimum: {min_runs_for_baseline})."
+        )
+        return None
+
+    baseline_run = filtered_runs.iloc[0]  # 最新のものを選択
     baseline_accuracy = baseline_run["metrics.accuracy"]
     print(
-        f"Found baseline run: {baseline_run.run_id} with accuracy: {baseline_accuracy:.4f}"
+        f"Found baseline run: {baseline_run['run_id']} with accuracy: {baseline_accuracy:.4f}"
     )
     return baseline_accuracy
 
