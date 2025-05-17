@@ -122,7 +122,7 @@ def get_baseline_accuracy(experiment_name="Titanic", min_runs_for_baseline=1):
     experiment_id = experiment.experiment_id
     runs = mlflow.search_runs(
         experiment_ids=[experiment_id],
-        filter_string="metrics.`accuracy` IS NOT NULL AND attributes.`status` = 'FINISHED'",
+        filter_string="metrics.accuracy IS NOT NULL AND status = 'FINISHED'",
         order_by=["attributes.start_time DESC"],
     )
     if runs.empty or len(runs) < min_runs_for_baseline:
